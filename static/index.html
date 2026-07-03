@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Video to Images</title>
+<style>
+  :root {
+    --bg: #0f0f11;
+    --surface: #18181c;
+    --surface2: #212127;
+    --border: #2e2e38;
+    --accent: #6c63ff;
+    --accent-dim: #3d3878;
+    --text: #e8e8f0;
+    --text-dim: #7b7b8f;
+    --green: #3ecf8e;
+    --red: #f66;
+    --yellow: #f0b429;
+    --radius: 10px;
+    --font: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 16px 80px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  header p {
+    color: var(--text-dim);
+    margin-top: 6px;
+    font-size: 0.9rem;
+  }
+
+  .badge {
+    display: inline-block;
+    background: var(--accent-dim);
+    color: #a8a3ff;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    width: 100%;
+    max-width: 640px;
+  }
+
+  .card + .card { margin-top: 16px; }
+
+  .card-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+
+  /* Drop zone */
+  #drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  #drop-zone:hover, #drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(108, 99, 255, 0.06);
+  }
+
+  #drop-zone .icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  #drop-zone p { color: var(--text-dim); font-size: 0.9rem; }
+  #drop-zone strong { color: var(--text); }
+  #drop-zone input { display: none; }
+
+  /* Video info strip */
+  #video-info {
+    display: none;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-top: 16px;
+    font-size: 0.85rem;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  #video-info .stat { display: flex; flex-direction: column; gap: 2px; }
+  #video-info .stat-label { color: var(--text-dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  #video-info .stat-value { font-weight: 600; }
+
+  /* Controls */
+  .form-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 140px; }
+
+  label {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  select, input[type="number"], input[type="range"] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.9rem;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+    -webkit-appearance: none;
+  }
+
+  select:focus, input[type="number"]:focus {
+    border-color: var(--accent);
+  }
+
+  select option { background: #1e1e24; }
+
+  input[type="range"] {
+    padding: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+    height: 36px;
+  }
+
+  .range-row { display: flex; align-items: center; gap: 12px; }
+  .range-val {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 22px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { opacity: 0.88; }
+
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+  .btn-green { background: var(--green); color: #0a1a12; }
+  .btn-green:hover:not(:disabled) { opacity: 0.88; }
+
+  /* Progress */
+  #progress-section { display: none; }
+
+  .progress-bar-wrap {
+    background: var(--surface2);
+    border-radius: 99px;
+    height: 8px;
+    overflow: hidden;
+    margin: 12px 0;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    border-radius: 99px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    background: var(--text-dim);
+  }
+  .status-dot.active { background: var(--accent); animation: pulse 1s infinite; }
+  .status-dot.done { background: var(--green); }
+  .status-dot.error { background: var(--red); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Preview grid */
+  #preview-section { display: none; }
+
+  .preview-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .preview-count { font-size: 0.85rem; color: var(--text-dim); }
+
+  .preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+  }
+
+  .preview-item {
+    position: relative;
+    aspect-ratio: 16/9;
+    background: var(--surface2);
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: border-color 0.2s;
+  }
+
+  .preview-item:hover { border-color: var(--accent); }
+
+  .preview-item img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .preview-item .frame-num {
+    position: absolute;
+    bottom: 4px; left: 6px;
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.7);
+    background: rgba(0,0,0,0.5);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .show-more {
+    margin-top: 12px;
+    text-align: center;
+  }
+
+  /* Lightbox */
+  #lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+  #lightbox .close {
+    position: absolute;
+    top: 20px; right: 24px;
+    font-size: 2rem;
+    color: #fff;
+    cursor: pointer;
+    background: none;
+    border: none;
+    line-height: 1;
+  }
+
+  /* Utils */
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .flex { display: flex; }
+  .gap-8 { gap: 8px; }
+  .text-dim { color: var(--text-dim); font-size: 0.85rem; }
+  .hidden { display: none !important; }
+
+  .error-msg {
+    color: var(--red);
+    font-size: 0.85rem;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge">Framestar</div>
+  <h1>Video to Images</h1>
+  <p>Extract frames from any video. Everything runs on your machine.</p>
+</header>
+
+<!-- Upload -->
+<div class="card">
+  <div class="card-title">1. Upload Video</div>
+
+  <div id="drop-zone">
+    <span class="icon">🎬</span>
+    <p><strong>Drop a video here</strong> or click to browse</p>
+    <p style="margin-top:6px;font-size:0.78rem;">MP4, MOV, AVI, MKV, WebM, M4V, FLV, WMV</p>
+    <input type="file" id="file-input" accept="video/*" />
+  </div>
+
+  <div id="video-info" class="flex mt-12">
+    <div class="stat">
+      <span class="stat-label">Duration</span>
+      <span class="stat-value" id="inf-duration">--</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">FPS</span>
+      <span class="stat-value" id="inf-fps">--</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Total Frames</span>
+      <span class="stat-value" id="inf-frames">--</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Resolution</span>
+      <span class="stat-value" id="inf-res">--</span>
+    </div>
+  </div>
+
+  <div id="upload-error" class="error-msg hidden"></div>
+</div>
+
+<!-- Settings -->
+<div class="card">
+  <div class="card-title">2. Extraction Settings</div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label>Mode</label>
+      <select id="mode">
+        <option value="interval_sec">Every N seconds</option>
+        <option value="interval_frame">Every N frames</option>
+        <option value="total_frames">Total N frames</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label id="value-label">Interval (seconds)</label>
+      <input type="number" id="value" value="1" min="0.1" step="0.1" />
+    </div>
+  </div>
+
+  <div class="form-row mt-12">
+    <div class="form-group">
+      <label>Output Format</label>
+      <select id="format">
+        <option value="jpg">JPEG (smaller files)</option>
+        <option value="png">PNG (lossless)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Engine</label>
+      <select id="engine">
+        <option value="ffmpeg">FFmpeg (fast)</option>
+        <option value="opencv">OpenCV (fallback)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-group mt-12">
+    <label>JPEG Quality: <span id="quality-val">85</span></label>
+    <div class="range-row">
+      <input type="range" id="quality" min="20" max="100" value="85" />
+    </div>
+  </div>
+
+  <div class="mt-16" id="estimate-row" style="color:var(--text-dim);font-size:0.83rem;"></div>
+
+  <div class="mt-16 flex gap-8">
+    <button class="btn btn-primary" id="extract-btn" disabled>Extract Frames</button>
+    <button class="btn btn-outline hidden" id="rerun-btn">Change Settings</button>
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="card" id="progress-section">
+  <div class="card-title">3. Progress</div>
+  <div>
+    <span class="status-dot" id="status-dot"></span>
+    <span id="status-text">Waiting...</span>
+  </div>
+  <div class="progress-bar-wrap mt-12">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+  <div class="progress-label">
+    <span id="prog-count">0 frames extracted</span>
+    <span id="prog-pct">0%</span>
+  </div>
+</div>
+
+<!-- Preview + Download -->
+<div class="card" id="preview-section">
+  <div class="preview-toolbar">
+    <div>
+      <div class="card-title" style="margin-bottom:2px;">4. Preview &amp; Download</div>
+      <div class="preview-count" id="preview-count"></div>
+    </div>
+    <div class="flex gap-8">
+      <button class="btn btn-green" id="zip-btn">Download All (ZIP)</button>
+    </div>
+  </div>
+
+  <div class="preview-grid" id="preview-grid"></div>
+  <div class="show-more hidden" id="show-more-wrap">
+    <button class="btn btn-outline" id="show-more-btn">Show more frames</button>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox">
+  <button class="close" id="lb-close">&times;</button>
+  <img id="lb-img" src="" alt="Frame preview" />
+</div>
+
+<script>
+const API = '';
+let jobId = null;
+let pollTimer = null;
+let allFiles = [];
+let shownCount = 0;
+const PAGE_SIZE = 24;
+
+// ---- DOM refs ----
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const videoInfo = document.getElementById('video-info');
+const extractBtn = document.getElementById('extract-btn');
+const rerunBtn = document.getElementById('rerun-btn');
+const modeSelect = document.getElementById('mode');
+const valueInput = document.getElementById('value');
+const valueLabel = document.getElementById('value-label');
+const qualityRange = document.getElementById('quality');
+const qualityVal = document.getElementById('quality-val');
+const estimateRow = document.getElementById('estimate-row');
+const progressSection = document.getElementById('progress-section');
+const previewSection = document.getElementById('preview-section');
+const previewGrid = document.getElementById('preview-grid');
+const previewCount = document.getElementById('preview-count');
+const statusDot = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+const progressBar = document.getElementById('progress-bar');
+const progCount = document.getElementById('prog-count');
+const progPct = document.getElementById('prog-pct');
+const zipBtn = document.getElementById('zip-btn');
+const lightbox = document.getElementById('lightbox');
+const lbImg = document.getElementById('lb-img');
+const showMoreWrap = document.getElementById('show-more-wrap');
+const showMoreBtn = document.getElementById('show-more-btn');
+
+let videoMeta = null;
+
+// ---- Drop zone ----
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) uploadFile(file);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) uploadFile(fileInput.files[0]);
+});
+
+// ---- Upload ----
+async function uploadFile(file) {
+  showError('');
+  extractBtn.disabled = true;
+  videoInfo.style.display = 'none';
+  dropZone.querySelector('p').textContent = `Uploading ${file.name}...`;
+
+  const fd = new FormData();
+  fd.append('video', file);
+
+  try {
+    const res = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { showError(data.error); dropZone.querySelector('p').innerHTML = '<strong>Drop a video here</strong> or click to browse'; return; }
+
+    jobId = data.job_id;
+    videoMeta = data.info;
+    showVideoInfo(data.info);
+    dropZone.querySelector('p').innerHTML = `<strong>${file.name}</strong> — ready`;
+    extractBtn.disabled = false;
+    updateEstimate();
+  } catch (e) {
+    showError('Upload failed. Is the server running?');
+    dropZone.querySelector('p').innerHTML = '<strong>Drop a video here</strong> or click to browse';
+  }
+}
+
+function showVideoInfo(info) {
+  const mins = Math.floor(info.duration / 60);
+  const secs = (info.duration % 60).toFixed(1);
+  document.getElementById('inf-duration').textContent = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  document.getElementById('inf-fps').textContent = info.fps;
+  document.getElementById('inf-frames').textContent = info.total_frames.toLocaleString();
+  document.getElementById('inf-res').textContent = `${info.width}x${info.height}`;
+  videoInfo.style.display = 'flex';
+}
+
+function showError(msg) {
+  const el = document.getElementById('upload-error');
+  el.textContent = msg;
+  el.classList.toggle('hidden', !msg);
+}
+
+// ---- Controls ----
+modeSelect.addEventListener('change', () => {
+  const labels = {
+    interval_sec: 'Interval (seconds)',
+    interval_frame: 'Interval (frames)',
+    total_frames: 'Total frames to extract',
+  };
+  valueLabel.textContent = labels[modeSelect.value];
+  const defaults = { interval_sec: 1, interval_frame: 30, total_frames: 50 };
+  valueInput.value = defaults[modeSelect.value];
+  updateEstimate();
+});
+
+valueInput.addEventListener('input', updateEstimate);
+
+qualityRange.addEventListener('input', () => {
+  qualityVal.textContent = qualityRange.value;
+});
+
+function updateEstimate() {
+  if (!videoMeta) { estimateRow.textContent = ''; return; }
+  const mode = modeSelect.value;
+  const val = parseFloat(valueInput.value) || 1;
+  const { duration, total_frames, fps } = videoMeta;
+  let est = 0;
+  if (mode === 'interval_sec') est = Math.ceil(duration / val);
+  else if (mode === 'interval_frame') est = Math.floor(total_frames / Math.max(1, val));
+  else if (mode === 'total_frames') est = val;
+  estimateRow.textContent = `Estimated output: ~${est.toLocaleString()} image${est === 1 ? '' : 's'}`;
+}
+
+// ---- Extract ----
+extractBtn.addEventListener('click', startExtraction);
+
+async function startExtraction() {
+  if (!jobId) return;
+  extractBtn.disabled = true;
+  rerunBtn.classList.add('hidden');
+  previewSection.style.display = 'none';
+  progressSection.style.display = 'block';
+  previewGrid.innerHTML = '';
+  allFiles = [];
+  shownCount = 0;
+  showMoreWrap.classList.add('hidden');
+
+  setStatus('queued', 'Starting...');
+
+  const payload = {
+    job_id: jobId,
+    mode: modeSelect.value,
+    value: parseFloat(valueInput.value),
+    format: document.getElementById('format').value,
+    quality: parseInt(qualityRange.value),
+    engine: document.getElementById('engine').value,
+  };
+
+  try {
+    const res = await fetch(`${API}/api/extract`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.error) { setStatus('error', data.error); extractBtn.disabled = false; return; }
+    pollStatus();
+  } catch (e) {
+    setStatus('error', 'Failed to start extraction');
+    extractBtn.disabled = false;
+  }
+}
+
+// ---- Poll ----
+function pollStatus() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (!jobId) return;
+    try {
+      const res = await fetch(`${API}/api/status/${jobId}`);
+      const data = await res.json();
+      handleStatusUpdate(data);
+    } catch (e) {}
+  }, 400);
+}
+
+function handleStatusUpdate(data) {
+  const { status, extracted, expected, files, error } = data;
+
+  if (status === 'queued') {
+    setStatus('active', 'Queued...');
+    setProgress(0, expected || 1);
+  } else if (status === 'extracting') {
+    setStatus('active', `Extracting frames...`);
+    setProgress(extracted, expected);
+  } else if (status === 'done') {
+    clearInterval(pollTimer);
+    setStatus('done', `Done! ${extracted} frame${extracted === 1 ? '' : 's'} extracted.`);
+    setProgress(extracted, extracted);
+    allFiles = files || [];
+    showPreview();
+    rerunBtn.classList.remove('hidden');
+  } else if (status === 'error') {
+    clearInterval(pollTimer);
+    setStatus('error', `Error: ${error}`);
+    extractBtn.disabled = false;
+  }
+}
+
+function setStatus(state, msg) {
+  statusText.textContent = msg;
+  statusDot.className = 'status-dot';
+  if (state === 'active') statusDot.classList.add('active');
+  else if (state === 'done') statusDot.classList.add('done');
+  else if (state === 'error') statusDot.classList.add('error');
+}
+
+function setProgress(done, total) {
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  progressBar.style.width = pct + '%';
+  progCount.textContent = `${done.toLocaleString()} frames extracted`;
+  progPct.textContent = pct + '%';
+}
+
+// ---- Preview ----
+function showPreview() {
+  previewSection.style.display = 'block';
+  previewCount.textContent = `${allFiles.length} frame${allFiles.length === 1 ? '' : 's'} ready`;
+  shownCount = 0;
+  showNextPage();
+}
+
+function showNextPage() {
+  const batch = allFiles.slice(shownCount, shownCount + PAGE_SIZE);
+  batch.forEach(fname => {
+    const item = document.createElement('div');
+    item.className = 'preview-item';
+    item.innerHTML = `<img src="/api/preview/${jobId}/${fname}" loading="lazy" alt="${fname}" /><span class="frame-num">${fname.replace('frame_', '').replace(/\.(jpg|png)$/, '')}</span>`;
+    item.querySelector('img').addEventListener('click', () => openLightbox(`/api/preview/${jobId}/${fname}`));
+    previewGrid.appendChild(item);
+  });
+  shownCount += batch.length;
+
+  if (shownCount < allFiles.length) {
+    showMoreWrap.classList.remove('hidden');
+    showMoreBtn.textContent = `Show more (${allFiles.length - shownCount} remaining)`;
+  } else {
+    showMoreWrap.classList.add('hidden');
+  }
+}
+
+showMoreBtn.addEventListener('click', showNextPage);
+
+// ---- Lightbox ----
+function openLightbox(src) {
+  lbImg.src = src;
+  lightbox.classList.add('open');
+}
+document.getElementById('lb-close').addEventListener('click', () => lightbox.classList.remove('open'));
+lightbox.addEventListener('click', e => { if (e.target === lightbox) lightbox.classList.remove('open'); });
+
+// ---- Download ZIP ----
+zipBtn.addEventListener('click', () => {
+  if (!jobId) return;
+  window.location.href = `/api/download-zip/${jobId}`;
+});
+
+// ---- Rerun ----
+rerunBtn.addEventListener('click', () => {
+  rerunBtn.classList.add('hidden');
+  extractBtn.disabled = false;
+  progressSection.style.display = 'none';
+  previewSection.style.display = 'none';
+});
+</script>
+</body>
+</html>
