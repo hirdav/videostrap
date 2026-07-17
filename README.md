@@ -6,11 +6,29 @@ Multimodal LLMs (Claude, GPT-4o, Gemini) and AI video generators (Runway, Pika, 
 
 Runs **100% locally**. No cloud. No accounts. No upload limits. Your footage never leaves your machine.
 
+[![CI](https://github.com/hirdav/videostrap/actions/workflows/ci.yml/badge.svg)](https://github.com/hirdav/videostrap/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-win%20%7C%20mac%20%7C%20linux-lightgrey.svg)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 ---
+
+## Table of contents
+
+- [Why?](#why)
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Example: frames for an LLM prompt](#example-frames-for-an-llm-prompt)
+- [How it works](#how-it-works)
+- [API](#api)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [FAQ](#faq)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
 
 ## Why?
 
@@ -38,9 +56,11 @@ Runs **100% locally**. No cloud. No accounts. No upload limits. Your footage nev
 
 ## Quick start
 
+**Requirements:** Python 3.9+, pip, and (recommended) FFmpeg on your `PATH`.
+
 ```bash
 # 1. Clone
-git clone https://github.com/<your-username>/videostrap.git
+git clone https://github.com/hirdav/videostrap.git
 cd videostrap
 
 # 2. Install Python deps
@@ -56,6 +76,8 @@ python app.py
 ```
 
 Open **http://localhost:5050** — drop in a video, pick a mode, hit Extract.
+
+> Tip: a Python virtual environment (`python -m venv venv && source venv/bin/activate`) keeps these dependencies isolated from the rest of your system.
 
 ## Example: frames for an LLM prompt
 
@@ -73,7 +95,7 @@ Want a **starting frame for image-to-video** generation? Use **Every N seconds**
 ```
 videostrap/
   app.py              # Flask backend — upload, extract, progress, download
-  static/index.html   # Single-file frontend (zero build step)
+  static/index.html    # Single-file frontend (zero build step)
   requirements.txt
   data/
     uploads/          # Temp video storage (deleted after extraction starts)
@@ -99,21 +121,75 @@ The UI is just a client for a small JSON API — script it if you like:
 
 Modes: `interval_sec` · `interval_frame` · `total_frames` — formats: `jpg` · `png` — engines: `ffmpeg` · `opencv`
 
-## Notes
+<details>
+<summary>Example: scripting the API with curl</summary>
 
-- The uploaded video is deleted from disk as soon as extraction starts
-- Frames live in `data/outputs/<job_id>/` until you clean up
-- Default port is **5050** — change it at the bottom of `app.py`
-- This is a local tool; don't expose it to the public internet as-is
+```bash
+# 1. Upload a video
+curl -s -F "video=@clip.mp4" http://localhost:5050/api/upload
+# → {"job_id": "...", "info": {...}}
 
-## Contributing
+# 2. Start extraction (10 evenly-spaced JPEG frames)
+curl -s -X POST http://localhost:5050/api/extract \
+  -H "Content-Type: application/json" \
+  -d '{"job_id":"<job_id>","mode":"total_frames","value":10,"format":"jpg","quality":85,"engine":"ffmpeg"}'
 
-Issues and PRs welcome! Ideas that would fit well:
+# 3. Poll status
+curl -s http://localhost:5050/api/status/<job_id>
+
+# 4. Download the ZIP once status is "done"
+curl -s -o frames.zip http://localhost:5050/api/download-zip/<job_id>
+```
+
+</details>
+
+## Configuration
+
+VideoStrap has no config file by design — everything is set per-request through the UI or API. A couple of things worth knowing:
+
+- Default port is **5050** — change it at the bottom of `app.py` (`app.run(..., port=5050)`)
+- Uploads and outputs live under `./data/` (git-ignored, safe to delete when the app isn't running)
+- Set `engine` to `opencv` in the API/UI if FFmpeg isn't installed or isn't on `PATH`
+
+## Troubleshooting
+
+| Symptom | Likely cause / fix |
+|---|---|
+| `ffmpeg: command not found` | FFmpeg isn't installed or not on `PATH` — install it (see Quick start) or switch the engine to **OpenCV** in the UI |
+| Upload fails with "Unsupported file type" | Container/extension isn't in the supported list (MP4, MOV, AVI, MKV, WebM, FLV, WMV, M4V) — try re-exporting/re-muxing the file |
+| Extraction seems stuck at 0% | Very large files can take a moment to probe — check the terminal running `app.py` for FFmpeg/OpenCV errors |
+| Port 5050 already in use | Another process is using it — stop it, or change the port in `app.py` |
+| Frames look corrupted/black | Some codecs aren't fully supported by the OpenCV fallback — install FFmpeg for broader codec coverage |
+
+## FAQ
+
+**Does any of my video leave my machine?**
+No. VideoStrap runs entirely on `localhost` — there's no network call, cloud upload, or telemetry.
+
+**Can I run this on a server and share it with others?**
+It's built as a local, single-user tool (in-memory job store, no auth). Don't expose it directly to the public internet — put it behind your own auth/proxy if you need remote access.
+
+**Why do I get slightly different frame counts than requested?**
+Frame extraction depends on the video's actual FPS/keyframes; `total_frames` mode targets an even distribution but the exact count can vary by ±1 depending on rounding.
+
+## Roadmap
+
+Ideas that would fit well — see [CONTRIBUTING.md](CONTRIBUTING.md) if you'd like to pick one up:
 
 - Scene-change detection mode (extract only on cuts)
 - Timestamp overlay / filename with timecodes
 - Batch mode for multiple videos
 - Contact-sheet (grid montage) export
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
+
+## Contributing
+
+Issues and PRs welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines before opening a pull request.
+
+## Security
+
+Found a security issue? Please see [SECURITY.md](SECURITY.md) for how to report it responsibly.
 
 ## License
 
