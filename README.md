@@ -79,7 +79,7 @@ Open **http://localhost:5050** — drop in a video, pick a mode, hit Extract.
 
 > Tip: a Python virtual environment (`python -m venv venv && source venv/bin/activate`) keeps these dependencies isolated from the rest of your system.
 
-## Example: frames for an LLM prompt
+## Example: frames for an LLM prompt-
 
 Want to ask Claude or GPT-4o *"what happens in this video?"*
 
